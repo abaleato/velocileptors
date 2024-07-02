@@ -26,7 +26,6 @@ class REPT:
             self.nk = len(kv)
             self.kmin, self.kmax = kv[0], kv[-1]
         
-        self.nk, self.kmin, self.kmax = nk, kmin, kmax
         self.rbao = rbao
         
         self.ept = EPT( k, p, kmin=kmin, kmax=kmax, nk = nk, third_order=True, kv=kv, **kw)
