@@ -14,13 +14,19 @@ class EPT(KEVelocityMoments):
     
     '''
 
-    def __init__(self, *args, kmin = 1e-2, kmax = 0.5, nk = 100, **kw):
-    
+    def __init__(self, *args, kmin = 1e-2, kmax = 0.5, nk = 100, kv=None, **kw):
+        # kv input added by ABL
+        if kv is None:
+            self.nk, self.kmin, self.kmax = nk, kmin, kmax
+        else:
+            self.nk = len(kv)
+            self.kmin, self.kmax = kv[0], kv[-1]
+
         # Initialize the velocity class
         KEVelocityMoments.__init__(self, *args, **kw)
         
-        self.nk, self.kmin, self.kmax = nk, kmin, kmax
-        self.make_tables(kmin=kmin, kmax=kmax, nk = nk)
+        self.make_tables(kmin=kmin, kmax=kmax, nk = nk, kv=kv)
+
         self.kv = self.pktable[:,0]
         self.plin = loginterp(self.k, self.p)(self.kv)
 

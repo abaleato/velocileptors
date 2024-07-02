@@ -185,6 +185,21 @@ class CLEFT:
         for foo in range(nk):
             self.pktable[foo, 1:] = self.p_integrals(kv[foo])
 
+    def make_ptable_customkv(self, kv):
+        '''
+        By ABL so that one can provide custom kv.
+
+        Make a table of different terms of P(k) between a given
+        'kmin', 'kmax' and for 'nk' equally spaced values in log10 of k
+        This is the most time consuming part of the code.
+        '''
+        nk = len(kv)
+        self.pktable = np.zeros([nk, self.num_power_components+1]) # one column for ks
+        #kv = np.logspace(np.log10(kmin), np.log10(kmax), nk)
+        self.pktable[:, 0] = kv[:]
+        for foo in range(nk):
+            self.pktable[foo, 1:] = self.p_integrals(kv[foo])
+
     def combine_bias_terms_pk(self, b1, b2, bs, b3, alpha, sn):
         '''
         Combine all the bias terms into one power spectrum,
@@ -217,8 +232,46 @@ class CLEFT:
         res = np.sum(pktemp * bias_monomials, axis =1) + alpha*kv**2 * za + sn
 
         return kv, res
+    
+    def combine_bias_terms_pkcross(self, bvec1, bvec2, SNcross):
+        '''
+        By Anton
 
+        Combine all the bias terms into one power spectrum,
+        where alpha is the counterterm and sn the shot noise/stochastic contribution.
+        
+        Three options, for
+        
+        (1) Full one-loop bias expansion (third order bias)
+        (2) only quadratic bias, including shear
+        (3) only density bias
+        
+        If (2) or (3), i.e. the class is set such that shear=False or third_order=False then the bs
+        and b3 parameters are not used.
+        
+        '''
+        b1a, b2a, bsa, b3a, alpha0a, sna = bvec1
+        b1b, b2b, bsb, b3b, alpha0b, snb = bvec2
 
+        arr = self.pktable
+        
+        
+        if self.third_order:
+            bias_monomials = np.array([1,(b1a+b1b)/2,b1a*b1b,(b2a+b2b)/2,(b1a*b2b+b1b*b2a)/2,b2a*b2b,(bsa+bsb)/2,(b1a*bsb+b1b*bsa)/2,
+                     (b2a*bsb+b2b*bsa)/2,bsa*bsb,(b3a+b3b)/2,(b1a*b3b+b1b*b3a)/2])
+        elif self.shear:
+            bias_monomials = np.array([1,(b1a+b1b)/2,b1a*b1b,(b2a+b2b)/2,(b1a*b2b+b1b*b2a)/2,b2a*b2b,(bsa+bsb)/2,(b1a*bsb+b1b*bsa)/2,
+                     (b2a*bsb+b2b*bsa)/2,bsa*bsb])
+        else:
+            bias_monomials = np.array([1,(b1a+b1b)/2,b1a*b1b,(b2a+b2b)/2,(b1a*b2b+b1b*b2a)/2,b2a*b2b])
+            
+
+        kv = arr[:,0]; za = arr[:,-1]
+        pktemp = np.copy(arr)[:,1:-1]
+
+        res = np.sum(pktemp * bias_monomials, axis =1) + (alpha0a + alpha0b)/2*kv**2 * za + SNcross
+
+        return kv, res
 
     def combine_bias_terms_pk_crossmatter(self,b1,b2,bs,b3,alpha):
         """A helper function to return P_{gm}, which is a common use-case."""

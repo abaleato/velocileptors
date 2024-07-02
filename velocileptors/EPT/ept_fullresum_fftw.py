@@ -18,12 +18,18 @@ class REPT:
     
     '''
     
-    def __init__(self, k, p, pnw=None, *args, rbao = 110, kmin = 1e-2, kmax = 0.5, nk = 100, sbao=None, **kw):
+    def __init__(self, k, p, pnw=None, *args, rbao = 110, kmin = 1e-2, kmax = 0.5, nk = 100, sbao=None,  kv=None, **kw):
+        # kv input added by ABL
+        if kv is None:
+            self.nk, self.kmin, self.kmax = nk, kmin, kmax
+        else:
+            self.nk = len(kv)
+            self.kmin, self.kmax = kv[0], kv[-1]
         
         self.nk, self.kmin, self.kmax = nk, kmin, kmax
         self.rbao = rbao
         
-        self.ept = EPT( k, p, kmin=kmin, kmax=kmax, nk = nk, third_order=True, **kw)
+        self.ept = EPT( k, p, kmin=kmin, kmax=kmax, nk = nk, third_order=True, kv=kv, **kw)
         
         if pnw is None:
             knw = self.ept.kint
@@ -32,7 +38,7 @@ class REPT:
         else:
             knw, pnw = k, pnw
             
-        self.ept_nw = EPT( knw, pnw, kmin=kmin, kmax=kmax, nk = nk, third_order=True, **kw)
+        self.ept_nw = EPT( knw, pnw, kmin=kmin, kmax=kmax, nk = nk, third_order=True, kv=kv, **kw)
         
         self.beyond_gauss = self.ept.beyond_gauss
         

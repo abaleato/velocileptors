@@ -60,21 +60,25 @@ class KEVelocityMoments(KECLEFT):
             
         self.compute_oneloop_spectra()
     
-    def make_tables(self, kmin = 1e-3, kmax = 3, nk = 100, linear_theory=False):
-    
-        self.kv = np.logspace(np.log10(kmin), np.log10(kmax), nk)
-        self.make_ptable(kmin=kmin, kmax=kmax, nk=nk)
-        self.make_vtable(kmin=kmin, kmax=kmax, nk=nk)
-        self.make_spartable(kmin=kmin, kmax=kmax, nk=nk)
-        self.make_stracetable(kmin=kmin, kmax=kmax, nk=nk)
+    def make_tables(self, kmin = 1e-3, kmax = 3, nk = 100, linear_theory=False, kv=None):
+        if kv is None:
+            self.kv = np.logspace(np.log10(kmin), np.log10(kmax), nk)
+        else:
+            self.kv = kv
+            nk = len(kv)
+            kmin = kv[0]; kmax = kv[-1]
+        self.make_ptable(kmin=kmin, kmax=kmax, nk=nk, kv=kv)
+        self.make_vtable(kmin=kmin, kmax=kmax, nk=nk, kv=kv)
+        self.make_spartable(kmin=kmin, kmax=kmax, nk=nk, kv=kv)
+        self.make_stracetable(kmin=kmin, kmax=kmax, nk=nk, kv=kv)
         self.convert_sigma_bases()
         
         if self.beyond_gauss: # make these even if not required since they're fast
-            self.make_gamma1table(kmin=kmin,kmax=kmax,nk=nk)
-            self.make_gamma2table(kmin=kmin,kmax=kmax,nk=nk)
+            self.make_gamma1table(kmin=kmin,kmax=kmax,nk=nk, kv=kv)
+            self.make_gamma2table(kmin=kmin,kmax=kmax,nk=nk, kv=kv)
             self.convert_gamma_bases()
             
-            self.make_kappatable(kmin=kmin,kmax=kmax,nk=nk)
+            self.make_kappatable(kmin=kmin,kmax=kmax,nk=nk, kv=kv)
             self.convert_kappa_bases()
         
         
@@ -582,15 +586,18 @@ class KEVelocityMoments(KECLEFT):
             ktemps, bias_ffts = self.sph_kappa.sph(l, bias_integrands)
             self.kappa_k0 += 4 * np.pi * interp1d(ktemps, bias_ffts, bounds_error=False)(self.kint)
 
-    def make_table(self, kmin = 1e-3, kmax = 3, nk = 100, func_name = 'power', linear_theory=False):
+    def make_table(self, kmin = 1e-3, kmax = 3, nk = 100, func_name = 'power', linear_theory=False, kv=None):
         '''
             Make a table of different terms of P(k), v(k), sigma(k) between a given
             'kmin', 'kmax' and for 'nk' equally spaced values in log10 of k
             This is the most time consuming part of the code.
         '''
-        
+        if kv is None:
+            kv = np.logspace(np.log10(kmin), np.log10(kmax), nk)
+        else:
+            nk = len(kv)
+            kmin = kv[0]; kmax = kv[-1]
         pktable = np.zeros([nk, self.num_power_components+1]) # one column for ks, but last column in power now the counterterm
-        kv = np.logspace(np.log10(kmin), np.log10(kmax), nk)
         pktable[:, 0] = kv[:]
         
         if not linear_theory:
@@ -647,33 +654,33 @@ class KEVelocityMoments(KECLEFT):
         
         return pktable
     
-    def make_ptable(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.pktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='power',linear_theory=True)
-        self.pktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='power')
+    def make_ptable(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.pktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='power',linear_theory=True, kv=kv)
+        self.pktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='power', kv=kv)
     
-    def make_vtable(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.vktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='velocity',linear_theory=True)
-        self.vktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='velocity')
+    def make_vtable(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.vktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='velocity',linear_theory=True, kv=kv)
+        self.vktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='velocity', kv=kv)
 
-    def make_spartable(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.sparktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='spar',linear_theory=True)
-        self.sparktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='spar')
+    def make_spartable(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.sparktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='spar',linear_theory=True, kv=kv)
+        self.sparktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='spar', kv=kv)
 
-    def make_stracetable(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.stracektable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='strace',linear_theory=True)
-        self.stracektable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='strace')
+    def make_stracetable(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.stracektable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='strace',linear_theory=True, kv=kv)
+        self.stracektable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='strace', kv=kv)
         
-    def make_gamma1table(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.gamma1ktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma1',linear_theory=True)
-        self.gamma1ktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma1')
+    def make_gamma1table(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.gamma1ktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma1',linear_theory=True, kv=kv)
+        self.gamma1ktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma1', kv=kv)
         
-    def make_gamma2table(self, kmin = 1e-3, kmax = 3, nk = 100, linear_theory=True):
-        self.gamma2ktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma2', linear_theory=True)
-        self.gamma2ktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma2')
+    def make_gamma2table(self, kmin = 1e-3, kmax = 3, nk = 100, linear_theory=True, kv=None):
+        self.gamma2ktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma2', linear_theory=True, kv=kv)
+        self.gamma2ktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='gamma2', kv=kv)
         
-    def make_kappatable(self, kmin = 1e-3, kmax = 3, nk = 100):
-        self.kappaktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='kappa',linear_theory=True)
-        self.kappaktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='kappa')
+    def make_kappatable(self, kmin = 1e-3, kmax = 3, nk = 100, kv=None):
+        self.kappaktable_linear = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='kappa',linear_theory=True, kv=kv)
+        self.kappaktable = self.make_table(kmin=kmin,kmax=kmax,nk=nk,func_name='kappa', kv=kv)
     
 
     def convert_sigma_bases(self, basis='Legendre'):

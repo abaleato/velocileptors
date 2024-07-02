@@ -545,15 +545,30 @@ class LPT_RSD:
         
         return 0
 
-    def combine_bias_terms_pkmu(self,nu,bvec):
+    def combine_bias_terms_pkmu(self,nu,bvec, bvec2=None, f=None, SN0cross=None, SN2cross=None, SN4cross=None):
         '''
+        Modified by Anton to allow for cross-spectra when bvec2, f and SNcross are provided.
+        
         Combine bias terms into P(k,nu) given the bias paramters and counterterms listed below.
         
         Returns k, pknu.
         '''
 
-        b1,b2,bs,b3,alpha0,alpha2,alpha4,alpha6, sn,sn2,sn4 = bvec
-        bias_monomials = np.array([1, b1, b1**2, b2, b1*b2, b2**2, bs, b1*bs, b2*bs, bs**2, b3, b1*b3])
+        if (bvec2 is not None) or (f is not None) or (SN0cross is not None):
+            assert (bvec2 is not None) and (f is not None) and (SN0cross is not None), "Need to provide all three parameters for cross-spectrum."
+            bias_monomials, linear_terms = compute_biaspoly_pkmu(bvec,bvec2,f)
+            alpha0, alpha2, alpha4, alpha6, sn, sn2, sn4 = linear_terms
+            # Technically the stochastic terms are still free dof. We can set them with the inputs
+            # or take them to be the square root of the product of that from the autos (the default)
+            if SN0cross is not None:
+                sn = SN0cross
+            if SN2cross is not None:
+                sn2 = SN2cross
+            if SN4cross is not None:
+                sn4 = SN4cross            
+        else:
+            b1,b2,bs,b3,alpha0,alpha2,alpha4,alpha6, sn,sn2,sn4 = bvec
+            bias_monomials = np.array([1, b1, b1**2, b2, b1*b2, b2**2, bs, b1*bs, b2*bs, bs**2, b3, b1*b3])
         
         try:
             pknu = self.pktables[nu]
@@ -565,7 +580,7 @@ class LPT_RSD:
         pktemp = np.copy(pknu)[:,1:-1]
                     
         res = np.sum(pktemp * bias_monomials,axis=1)\
-              + (alpha0 + alpha2*nu**2 + alpha4*nu**4 + alpha6*nu**6) * kv**2 * za\
+                + (alpha0 + alpha2*nu**2 + alpha4*nu**4 + alpha6*nu**6) * kv**2 * za\
             + sn + sn2 * kv**2*nu**2 + sn4 * kv**4 * nu**4
                     
         return kv, res
@@ -871,3 +886,21 @@ class LPT_RSD:
         
         return (ss0, xi0), (ss2, xi2), (ss4, xi4)
       
+def compute_biaspoly_pkmu(bvec1,bvec2,f):
+    '''
+    Inserted by Anton. A modified version of Haruki's code.
+    bvec=(b1,b2,bs,b3 ...,alpha0,alpha2,alpha4,alpha6,sn,sn2,sn4), biases are Lagrangian
+    '''
+    b1a,b2a,bsa,b3a,alpha0a,alpha2a,alpha4a,alpha6a,sna,sn2a,sn4a=bvec1
+    b1b,b2b,bsb,b3b,alpha0b,alpha2b,alpha4b,alpha6b,snb,sn2b,sn4b=bvec2
+    bE1a = b1a+1
+    bE1b = b1b+1
+    bias_monomials = np.array([1,(b1a+b1b)/2,b1a*b1b,(b2a+b2b)/2,(b1a*b2b+b1b*b2a)/2,b2a*b2b,(bsa+bsb)/2,(b1a*bsb+b1b*bsa)/2, (b2a*bsb+b2b*bsa)/2,bsa*bsb,(b3a+b3b)/2,(b1a*b3b+b1b*b3a)/2])
+    linear_terms = [(alpha0a*bE1b/bE1a+alpha0b*bE1a/bE1b)/2,
+                    (alpha2a*bE1b/bE1a+alpha2b*bE1a/bE1b+alpha0a*f/bE1a*(1-bE1b/bE1a)+alpha0b*f/bE1b*(1-bE1a/bE1b))/2,
+                    (alpha4a*bE1b/bE1a+alpha4b*bE1a/bE1b+alpha2a*f/bE1a*(1-bE1b/bE1a)+alpha2b*f/bE1b*(1-bE1a/bE1b)
+                    +alpha0a*f**2/bE1a**2*(bE1b/bE1a-1)+alpha0b*f**2/bE1b**2*(bE1a/bE1b-1))/2,
+                    0,np.sqrt(sna*snb),np.sqrt(sn2a*sn2b),np.sqrt(sn4a*sn4b)]
+    # Note that np.sqrt(sna*snb) and suchlike can sometimes give nans is the sn's are negative
+    # but this doesn't matter as long as you explicitlay set the cross-power SN terms later
+    return bias_monomials, linear_terms
